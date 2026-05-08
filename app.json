@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bdth-app",
+    "name": "BDTH — HGM",
     "slug": "bdth-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,21 +10,54 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1565C0"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "es.hgm.bdth",
+      "infoPlist": {
+        "NSCameraUsageDescription": "La cámara se usa para fotografiar los formularios BDTH en papel y extraer datos automáticamente con IA.",
+        "NSPhotoLibraryUsageDescription": "La galería se usa para seleccionar imágenes o PDFs de formularios BDTH.",
+        "NSMicrophoneUsageDescription": "No se usa el micrófono."
+      }
     },
     "android": {
+      "package": "es.hgm.bdth",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1565C0"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-router",
+      [
+        "expo-camera",
+        { "cameraPermission": "La cámara se usa para fotografiar formularios BDTH." }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1565C0"
+        }
+      ]
+    ],
+    "scheme": "bdth",
+    "extra": {
+      "router": { "origin": false }
     }
   }
 }
