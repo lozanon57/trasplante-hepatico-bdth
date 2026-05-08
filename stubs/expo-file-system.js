@@ -1,0 +1,1 @@
+module.exports = { documentDirectory: '/demo/', cacheDirectory: '/cache/', readAsStringAsync: async () => '', writeAsStringAsync: async () => {}, getInfoAsync: async () => ({ exists: false, size: 0 }), makeDirectoryAsync: async () => {}, EncodingType: { Base64: 'base64', UTF8: 'utf8' } };

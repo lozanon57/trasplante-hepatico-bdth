@@ -1,0 +1,1 @@
+module.exports = { launchImageLibraryAsync: async () => ({ canceled: true }), launchCameraAsync: async () => ({ canceled: true }), requestMediaLibraryPermissionsAsync: async () => ({ granted: false }), MediaTypeOptions: { Images: 'Images', All: 'All' } };

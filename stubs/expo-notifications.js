@@ -1,0 +1,1 @@
+module.exports = { requestPermissionsAsync: async () => ({ granted: false }), scheduleNotificationAsync: async () => 'stub', setNotificationHandler: () => {}, addNotificationReceivedListener: () => ({ remove: () => {} }), addNotificationResponseReceivedListener: () => ({ remove: () => {} }), AndroidImportance: { MAX: 5 }, setNotificationChannelAsync: async () => {} };
