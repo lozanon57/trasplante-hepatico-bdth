@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 type Seccion = 'donante' | 'receptor_implante' | 'postoperatorio';
 
@@ -163,7 +164,11 @@ async function extractOnline(
   const apiKey = await SecureStore.getItemAsync('anthropic_api_key');
   if (!apiKey) throw new Error('API Key de Anthropic no configurada. Ve a Configuración.');
 
-  const client = new Anthropic({ apiKey });
+  const clientOptions: ConstructorParameters<typeof Anthropic>[0] = { apiKey };
+  if (Platform.OS === 'web') {
+    (clientOptions as Record<string, unknown>).dangerouslyAllowBrowser = true;
+  }
+  const client = new Anthropic(clientOptions);
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,

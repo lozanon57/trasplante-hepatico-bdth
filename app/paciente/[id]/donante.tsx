@@ -17,8 +17,7 @@ import {
   OPTIONS_TIPO_DONACION, OPTIONS_PRESERVACION,
   TIMEPOINTS_INTRAOP, COLS_INTRAOP,
 } from '../../../constants/variables';
-import * as ImagePicker from 'expo-image-picker';
-import { extractFromImage, parseFechaFormulario } from '../../../lib/ocr/claude-vision';
+import { captureAndOCR, parseFechaFormulario } from '../../../lib/ocr/capture';
 
 type FormData = Record<string, string | number | null>;
 
@@ -52,31 +51,13 @@ export default function FormularioDonante() {
   const onSerieBilisChange = (tp: string, col: string, val: string) =>
     setSerieBilis(prev => ({ ...prev, [tp]: { ...(prev[tp] ?? {}), [col]: val } }));
 
-  // OCR — Cámara
-  const handleCamera = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) { Alert.alert('Permiso denegado', 'Activa la cámara en Ajustes.'); return; }
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.85 });
-    if (!result.canceled && result.assets[0].base64) {
-      processOCR(result.assets[0].base64, 'image/jpeg');
-    }
-  };
-
-  // OCR — Galería/PDF
-  const handleGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.85 });
-    if (!result.canceled && result.assets[0].base64) {
-      processOCR(result.assets[0].base64, 'image/jpeg');
-    }
-  };
-
-  const processOCR = async (base64: string, mime: 'image/jpeg' | 'image/png') => {
+  const handleOCR = async (source: 'camera' | 'gallery') => {
     setOcrLoading(true);
     try {
-      const data = await extractFromImage(base64, mime, 'donante');
-      // Rellenar campos del formulario con datos extraídos
+      const result = await captureAndOCR(source, 'donante');
+      if (!result) return;
       const updates: FormData = {};
-      for (const [k, v] of Object.entries(data)) {
+      for (const [k, v] of Object.entries(result.fields)) {
         if (k === 'fecha' && typeof v === 'string') {
           updates['fecha'] = parseFechaFormulario(v);
         } else if (typeof v === 'number' || typeof v === 'string' || v === null) {
@@ -84,9 +65,10 @@ export default function FormularioDonante() {
         }
       }
       setForm(prev => ({ ...prev, ...updates }));
+      const shield = result.headerRedacted ? '🛡️ Cabecera eliminada · ' : '';
       Alert.alert(
         '✅ OCR completado',
-        `Se extrajeron ${Object.values(updates).filter(v => v !== null).length} campos. Revisa y corrige si es necesario.`
+        `${shield}${result.fieldCount} campos extraídos. Revisa y corrige si es necesario.`,
       );
     } catch (err) {
       Alert.alert('Error OCR', (err as Error).message);
@@ -147,10 +129,14 @@ export default function FormularioDonante() {
         }
       }
 
-      Alert.alert('✅ Guardado', 'Datos del donante guardados correctamente.', [
-        { text: 'Ir a Implante', onPress: () => router.push(`/paciente/${tid}/implante`) },
-        { text: 'Aceptar' },
-      ]);
+      if (Platform.OS === 'web') {
+        router.push(`/paciente/${tid}/implante`);
+      } else {
+        Alert.alert('✅ Guardado', 'Datos del donante guardados correctamente.', [
+          { text: 'Ir a Implante', onPress: () => router.push(`/paciente/${tid}/implante`) },
+          { text: 'Aceptar' },
+        ]);
+      }
     } catch (err) {
       Alert.alert('Error al guardar', (err as Error).message);
     } finally {
@@ -174,7 +160,7 @@ export default function FormularioDonante() {
 
         {/* Botones OCR */}
         <View style={styles.block}>
-          <OCRButton onCamera={handleCamera} onGallery={handleGallery} loading={ocrLoading} />
+          <OCRButton onCamera={() => handleOCR('camera')} onGallery={() => handleOCR('gallery')} loading={ocrLoading} />
         </View>
 
         {/* IDENTIFICACIÓN */}

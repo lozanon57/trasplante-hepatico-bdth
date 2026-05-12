@@ -8,7 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { anonimizarNHC } from '../../lib/anonymization/crypto';
 import { listarTrasplantes, calcularCompletitud, buscarPacientePorHash } from '../../lib/db/queries';
 import { PatientCard } from '../../components/PatientCard';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { Colors } from '../../constants/variables';
+
+const BUSCAR_COLOR = '#00695C';
 
 export default function Buscar() {
   const [query, setQuery]   = useState('');
@@ -54,10 +57,12 @@ export default function Buscar() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Buscar casos</Text>
-        </View>
+        <ScreenHeader
+          icon="search-outline"
+          title="Buscar casos"
+          subtitle="Por NHC, código BDT o cirujano"
+          color={BUSCAR_COLOR}
+        />
 
         {/* Buscador */}
         <View style={styles.searchBox}>
@@ -113,13 +118,6 @@ export default function Buscar() {
 
 const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: Colors.background },
-  header: {
-    backgroundColor: Colors.primary,
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-  },
-  title:      { fontSize: 20, fontWeight: '900', color: '#fff' },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',

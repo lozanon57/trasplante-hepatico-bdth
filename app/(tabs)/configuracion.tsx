@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import {
   pinConfigurado, configurarPIN, verificarPIN,
   exportarSaltCifrado, tiempoBloqueoRestante,
@@ -101,9 +102,10 @@ export default function Configuracion() {
     try {
       const path = await generarExcel();
       const local = await FileSystem.getInfoAsync(path);
+      const sizeKB = local.exists ? Math.round(((local as any).size ?? 0) / 1024) : 0;
       Alert.alert(
         'Excel generado',
-        `Tamaño: ${Math.round((local.size ?? 0) / 1024)} KB\n¿Subir al servidor (${serverIP})?`,
+        `Tamaño: ${sizeKB} KB\n¿Subir al servidor (${serverIP})?`,
         [
           { text: 'Solo guardar local', style: 'cancel' },
           {
@@ -144,10 +146,12 @@ export default function Configuracion() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Configuración</Text>
-      </View>
+      <ScreenHeader
+        icon="settings-outline"
+        title="Configuración"
+        subtitle="Servidor · API Key · PIN maestro"
+        color="#1A237E"
+      />
 
       {/* CIRUJANO */}
       <Section title="Perfil" icon="person-outline">
@@ -317,13 +321,6 @@ function PrimaryBtn({ label, onPress }: { label: string; onPress: () => void }) 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content:   { paddingBottom: 50 },
-  header: {
-    backgroundColor: Colors.primary,
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-  },
-  title:     { fontSize: 20, fontWeight: '900', color: '#fff' },
   label:     { fontSize: 13, fontWeight: '600', color: Colors.textPrimary, marginBottom: 6 },
   hint:      { fontSize: 12, color: Colors.textSecondary, marginBottom: 12, lineHeight: 18 },
   input: {

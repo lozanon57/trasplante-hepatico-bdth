@@ -1,23 +1,9 @@
-// Web implementation — uses localStorage instead of SQLite
+// Web implementation — mirrors the synchronous Drizzle API using localStorage
 
-export type Paciente = {
-  id: number; codigo_anon: string; nhc_hash: string;
-  grupo_abo: string | null; fecha_creacion: number; creado_por: string | null;
-};
-export type Trasplante = {
-  id: number; paciente_id: number; fecha_trasplante: number | null;
-  estado: string; num_alertas: number; alertas_criticas: number;
-  tiene_donante: number; tiene_implante: number; tiene_postop: number;
-};
-
-const KEY_PAC  = 'bdth_pacientes';
-const KEY_TRA  = 'bdth_trasplantes';
-const KEY_DON  = 'bdth_donantes';
-const KEY_IMP  = 'bdth_implantes';
-const KEY_POST = 'bdth_postops';
+// ── Storage helpers ────────────────────────────────────────────────────────────
 
 function load<T>(key: string): T[] {
-  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(key) ?? '[]'); } catch { return []; }
 }
 function save<T>(key: string, data: T[]): void {
   localStorage.setItem(key, JSON.stringify(data));
@@ -26,109 +12,154 @@ function nextId<T extends { id: number }>(arr: T[]): number {
   return arr.length === 0 ? 1 : Math.max(...arr.map(x => x.id)) + 1;
 }
 
-export async function initDatabase(): Promise<void> {
-  // No-op on web — localStorage is always ready
+// ── Table shapes (matching schema.ts) ─────────────────────────────────────────
+
+type Paciente = {
+  id: number; codigo_anon: string; nhc_hash: string;
+  grupo_abo: string | null; fecha_creacion: number | null; creado_por: string | null;
+};
+type Trasplante = {
+  id: number; paciente_id: number; nhc_higado: string | null;
+  fecha_trasplante: number | null; estado: string | null; num_alertas: number | null;
+};
+type AlertaLog = {
+  id: number; trasplante_id: number; tipo: string; seccion: string | null;
+  campo: string | null; mensaje: string | null; resuelta: number; fecha: number | null;
+};
+
+// ── Init (no-op on web) ────────────────────────────────────────────────────────
+
+export function initDatabase(): void {}
+
+// ── Pacientes ──────────────────────────────────────────────────────────────────
+
+export function crearPaciente(data: Omit<Paciente, 'id'>): Paciente {
+  const pacs = load<Paciente>('bdth_p');
+  const pac: Paciente = { id: nextId(pacs), ...data };
+  save('bdth_p', [...pacs, pac]);
+  return pac;
 }
 
-export async function crearPaciente(
-  codigo_anon: string, nhc_hash: string, grupo_abo: string, creado_por: string
-): Promise<number> {
-  const pacs = load<Paciente>(KEY_PAC);
-  const existing = pacs.find(p => p.nhc_hash === nhc_hash);
-  if (existing) {
-    const tras = load<Trasplante>(KEY_TRA);
-    const t = tras.find(t => t.paciente_id === existing.id);
-    return t?.id ?? 0;
-  }
-  const pac: Paciente = {
-    id: nextId(pacs), codigo_anon, nhc_hash, grupo_abo,
-    fecha_creacion: Date.now(), creado_por,
-  };
-  pacs.push(pac);
-  save(KEY_PAC, pacs);
-  const tras = load<Trasplante>(KEY_TRA);
-  const tra: Trasplante = {
-    id: nextId(tras), paciente_id: pac.id, fecha_trasplante: null,
-    estado: 'incompleto', num_alertas: 0, alertas_criticas: 0,
-    tiene_donante: 0, tiene_implante: 0, tiene_postop: 0,
-  };
-  tras.push(tra);
-  save(KEY_TRA, tras);
-  return tra.id;
+export function buscarPacientePorHash(nhc_hash: string): Paciente | undefined {
+  return load<Paciente>('bdth_p').find(p => p.nhc_hash === nhc_hash);
 }
 
-export async function listarTrasplantes(): Promise<(Trasplante & { codigo_anon: string; grupo_abo: string | null })[]> {
-  const pacs = load<Paciente>(KEY_PAC);
-  const tras = load<Trasplante>(KEY_TRA);
+export function buscarPacientePorCodigo(codigo: string): Paciente | undefined {
+  return load<Paciente>('bdth_p').find(p => p.codigo_anon === codigo);
+}
+
+// ── Trasplantes ────────────────────────────────────────────────────────────────
+
+export function crearTrasplante(data: Omit<Trasplante, 'id'>): Trasplante {
+  const tras = load<Trasplante>('bdth_t');
+  const t: Trasplante = { id: nextId(tras), ...data };
+  save('bdth_t', [...tras, t]);
+  return t;
+}
+
+export function listarTrasplantes(): { trasplante: Trasplante; codigo_anon: string; creado_por: string | null }[] {
+  const pacs = load<Paciente>('bdth_p');
+  const tras = load<Trasplante>('bdth_t').slice().reverse();
   return tras.map(t => {
-    const p = pacs.find(p => p.id === t.paciente_id);
-    return { ...t, codigo_anon: p?.codigo_anon ?? '—', grupo_abo: p?.grupo_abo ?? null };
-  }).reverse();
+    const p = pacs.find(p => p.id === t.paciente_id)!;
+    return { trasplante: t, codigo_anon: p?.codigo_anon ?? '—', creado_por: p?.creado_por ?? null };
+  });
 }
 
-export async function obtenerTrasplante(id: number): Promise<Trasplante | null> {
-  return load<Trasplante>(KEY_TRA).find(t => t.id === id) ?? null;
+export function obtenerTrasplante(id: number): Trasplante | undefined {
+  return load<Trasplante>('bdth_t').find(t => t.id === id);
 }
 
-export async function buscarPacientePorCodigo(codigo: string) {
-  const pacs = load<Paciente>(KEY_PAC);
-  const p = pacs.find(p => p.codigo_anon.toLowerCase().includes(codigo.toLowerCase()));
-  if (!p) return null;
-  const t = load<Trasplante>(KEY_TRA).find(t => t.paciente_id === p.id);
-  return t ? { ...t, codigo_anon: p.codigo_anon, grupo_abo: p.grupo_abo } : null;
+export function actualizarEstadoTrasplante(id: number, estado: string, num_alertas: number): void {
+  const tras = load<Trasplante>('bdth_t').map(t =>
+    t.id === id ? { ...t, estado, num_alertas } : t
+  );
+  save('bdth_t', tras);
 }
 
-export async function buscarPacientePorHash(nhc_hash: string) {
-  const p = load<Paciente>(KEY_PAC).find(p => p.nhc_hash === nhc_hash);
-  if (!p) return null;
-  const t = load<Trasplante>(KEY_TRA).find(t => t.paciente_id === p.id);
-  return t ? { ...t, codigo_anon: p.codigo_anon, grupo_abo: p.grupo_abo } : null;
+// ── Donante ────────────────────────────────────────────────────────────────────
+
+export function guardarDonante(data: Record<string, unknown>): Record<string, unknown> {
+  const arr = load<Record<string, unknown>>('bdth_d');
+  const existing = arr.findIndex(d => d.trasplante_id === data.trasplante_id);
+  const record = { id: existing >= 0 ? arr[existing].id as number : nextId(arr as any[]), ...data };
+  if (existing >= 0) arr[existing] = record; else arr.push(record);
+  save('bdth_d', arr);
+  return record;
 }
 
-export async function guardarDonante(trasplante_id: number, data: Record<string, unknown>): Promise<void> {
-  const arr = load<Record<string, unknown>>(KEY_DON).filter(d => d.trasplante_id !== trasplante_id);
-  arr.push({ ...data, trasplante_id });
-  save(KEY_DON, arr);
-  const tras = load<Trasplante>(KEY_TRA);
-  const idx = tras.findIndex(t => t.id === trasplante_id);
-  if (idx >= 0) { tras[idx].tiene_donante = 1; save(KEY_TRA, tras); }
+export function obtenerDonante(trasplante_id: number): Record<string, unknown> | undefined {
+  return load<Record<string, unknown>>('bdth_d').find(d => d.trasplante_id === trasplante_id);
 }
 
-export async function obtenerDonante(trasplante_id: number) {
-  return load<Record<string, unknown>>(KEY_DON).find(d => d.trasplante_id === trasplante_id) ?? null;
+// ── Receptor + Implante ────────────────────────────────────────────────────────
+
+export function guardarReceptorImplante(data: Record<string, unknown>): Record<string, unknown> {
+  const arr = load<Record<string, unknown>>('bdth_i');
+  const existing = arr.findIndex(d => d.trasplante_id === data.trasplante_id);
+  const record = { id: existing >= 0 ? arr[existing].id as number : nextId(arr as any[]), ...data };
+  if (existing >= 0) arr[existing] = record; else arr.push(record);
+  save('bdth_i', arr);
+  return record;
 }
 
-export async function guardarReceptorImplante(trasplante_id: number, data: Record<string, unknown>): Promise<void> {
-  const arr = load<Record<string, unknown>>(KEY_IMP).filter(d => d.trasplante_id !== trasplante_id);
-  arr.push({ ...data, trasplante_id });
-  save(KEY_IMP, arr);
-  const tras = load<Trasplante>(KEY_TRA);
-  const idx = tras.findIndex(t => t.id === trasplante_id);
-  if (idx >= 0) { tras[idx].tiene_implante = 1; save(KEY_TRA, tras); }
+export function obtenerReceptorImplante(trasplante_id: number): Record<string, unknown> | undefined {
+  return load<Record<string, unknown>>('bdth_i').find(d => d.trasplante_id === trasplante_id);
 }
 
-export async function obtenerReceptorImplante(trasplante_id: number) {
-  return load<Record<string, unknown>>(KEY_IMP).find(d => d.trasplante_id === trasplante_id) ?? null;
+// ── Postoperatorio ─────────────────────────────────────────────────────────────
+
+export function guardarPostoperatorio(data: Record<string, unknown>): Record<string, unknown> {
+  const arr = load<Record<string, unknown>>('bdth_po');
+  const existing = arr.findIndex(d => d.trasplante_id === data.trasplante_id);
+  const record = { id: existing >= 0 ? arr[existing].id as number : nextId(arr as any[]), ...data };
+  if (existing >= 0) arr[existing] = record; else arr.push(record);
+  save('bdth_po', arr);
+  return record;
 }
 
-export async function guardarPostoperatorio(trasplante_id: number, data: Record<string, unknown>): Promise<void> {
-  const arr = load<Record<string, unknown>>(KEY_POST).filter(d => d.trasplante_id !== trasplante_id);
-  arr.push({ ...data, trasplante_id });
-  save(KEY_POST, arr);
-  const tras = load<Trasplante>(KEY_TRA);
-  const idx = tras.findIndex(t => t.id === trasplante_id);
-  if (idx >= 0) { tras[idx].tiene_postop = 1; save(KEY_TRA, tras); }
+export function obtenerPostoperatorio(trasplante_id: number): Record<string, unknown> | undefined {
+  return load<Record<string, unknown>>('bdth_po').find(d => d.trasplante_id === trasplante_id);
 }
 
-export async function obtenerPostoperatorio(trasplante_id: number) {
-  return load<Record<string, unknown>>(KEY_POST).find(d => d.trasplante_id === trasplante_id) ?? null;
+// ── Alertas ────────────────────────────────────────────────────────────────────
+
+export function insertarAlerta(data: Omit<AlertaLog, 'id'>): void {
+  const arr = load<AlertaLog>('bdth_a');
+  save('bdth_a', [...arr, { id: nextId(arr), ...data }]);
 }
 
-export async function calcularCompletitud(trasplante_id: number): Promise<number> {
-  const t = await obtenerTrasplante(trasplante_id);
-  if (!t) return 0;
-  return Math.round(((t.tiene_donante + t.tiene_implante + t.tiene_postop) / 3) * 100);
+export function borrarAlertasTrasplante(trasplante_id: number): void {
+  save('bdth_a', load<AlertaLog>('bdth_a').filter(a => a.trasplante_id !== trasplante_id));
 }
 
-export async function generarAlertas(_trasplante_id: number): Promise<void> {}
-export async function contarAlertas(_trasplante_id: number) { return { total: 0, criticas: 0 }; }
+export function obtenerAlertasPendientes(trasplante_id: number): AlertaLog[] {
+  return load<AlertaLog>('bdth_a').filter(a => a.trasplante_id === trasplante_id && !a.resuelta);
+}
+
+export function totalAlertasCriticasPendientes(): number {
+  return load<AlertaLog>('bdth_a').filter(a => a.tipo === 'critica' && !a.resuelta).length;
+}
+
+export function resolverAlerta(id: number): void {
+  save('bdth_a', load<AlertaLog>('bdth_a').map(a => a.id === id ? { ...a, resuelta: 1 } : a));
+}
+
+// ── Completitud ────────────────────────────────────────────────────────────────
+
+export function calcularCompletitud(trasplante_id: number): number {
+  const secciones = [
+    obtenerDonante(trasplante_id),
+    obtenerReceptorImplante(trasplante_id),
+    obtenerPostoperatorio(trasplante_id),
+  ];
+  return Math.round((secciones.filter(Boolean).length / 3) * 100);
+}
+
+// ── DB export (unused on web) ──────────────────────────────────────────────────
+export const db = null;
+
+// ── Dev helpers ────────────────────────────────────────────────────────────────
+export function clearDatabase(): void {
+  ['bdth_p','bdth_t','bdth_d','bdth_i','bdth_po','bdth_a'].forEach(k => localStorage.removeItem(k));
+}

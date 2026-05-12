@@ -274,3 +274,14 @@ export function calcularCompletitud(trasplante_id: number): number {
   const presentes = secciones.filter(Boolean).length;
   return Math.round((presentes / 3) * 100);
 }
+
+export function clearDatabase(): void {
+  sqlite.execSync(`
+    DELETE FROM alertas_log;
+    DELETE FROM postoperatorio;
+    DELETE FROM receptor_implante;
+    DELETE FROM donante;
+    DELETE FROM trasplantes;
+    DELETE FROM pacientes;
+  `);
+}

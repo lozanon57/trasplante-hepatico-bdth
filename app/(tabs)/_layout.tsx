@@ -1,9 +1,13 @@
 import React from 'react';
+import { Text } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../lib/auth/context';
 import { Colors } from '../../constants/variables';
 
 export default function TabsLayout() {
+  const { user } = useAuth();
+  const esJefe   = user?.rol === 'jefe';
+
   return (
     <Tabs
       screenOptions={{
@@ -13,37 +17,49 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor:  Colors.border,
-          height: 62,
+          borderTopWidth:  1,
+          height: 64,
           paddingBottom: 8,
+          paddingTop: 4,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Casos',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => <Text style={{ fontSize: focused ? 26 : 22, marginBottom: -2 }}>🫀</Text>,
         }}
       />
       <Tabs.Screen
         name="buscar"
         options={{
           title: 'Buscar',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => <Text style={{ fontSize: focused ? 26 : 22, marginBottom: -2 }}>🔍</Text>,
         }}
       />
+      <Tabs.Screen
+        name="estadisticas"
+        options={{
+          title: 'Estadísticas',
+          tabBarIcon: ({ focused }) => <Text style={{ fontSize: focused ? 26 : 22, marginBottom: -2 }}>📊</Text>,
+        }}
+      />
+      {esJefe && (
+        <Tabs.Screen
+          name="jefe"
+          options={{
+            title: 'Jefatura',
+            tabBarIcon: ({ focused }) => <Text style={{ fontSize: focused ? 26 : 22, marginBottom: -2 }}>🔐</Text>,
+          }}
+        />
+      )}
       <Tabs.Screen
         name="configuracion"
         options={{
           title: 'Config.',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => <Text style={{ fontSize: focused ? 26 : 22, marginBottom: -2 }}>⚙️</Text>,
         }}
       />
     </Tabs>

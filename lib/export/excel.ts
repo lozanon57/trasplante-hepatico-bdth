@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { EncodingType } from 'expo-file-system/build/legacy/FileSystem.types';
 import { formatFecha } from '../ocr/claude-vision';
 import {
   listarTrasplantes,
@@ -60,9 +61,9 @@ export async function generarExcel(): Promise<string> {
   const base64 = Buffer.from(buffer).toString('base64');
 
   // Guardar en el sistema de archivos del dispositivo
-  const path = FileSystem.documentDirectory + `BDTH_${isoDate()}.xlsx`;
+  const path = (FileSystem.documentDirectory ?? '') + `BDTH_${isoDate()}.xlsx`;
   await FileSystem.writeAsStringAsync(path, base64, {
-    encoding: FileSystem.EncodingType.Base64,
+    encoding: EncodingType.Base64,
   });
 
   return path;

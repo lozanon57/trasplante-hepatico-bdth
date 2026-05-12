@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   RefreshControl, StatusBar, Alert,
@@ -7,6 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { PatientCard } from '../../components/PatientCard';
 import { AlertBadge } from '../../components/AlertBadge';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import {
   listarTrasplantes,
   calcularCompletitud,
@@ -64,14 +65,13 @@ export default function Dashboard() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>BDTH</Text>
-          <Text style={styles.headerSub}>H. Gregorio Marañón · Trasplante Hepático</Text>
-        </View>
-        <AlertBadge count={totalAlertas} tipo={totalCriticas > 0 ? 'critica' : 'normal'} />
-      </View>
+      <ScreenHeader
+        icon="list-outline"
+        title="Casos BDTH"
+        subtitle="H. Gregorio Marañón · Trasplante Hepático"
+        color={Colors.primary}
+        right={<AlertBadge count={totalAlertas} tipo={totalCriticas > 0 ? 'critica' : 'normal'} />}
+      />
 
       {/* Banner alertas críticas */}
       {totalCriticas > 0 && (
@@ -86,20 +86,30 @@ export default function Dashboard() {
       {/* Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
+          <Ionicons name="heart-outline" size={16} color={Colors.primary} />
           <Text style={styles.statNum}>{casos.length}</Text>
-          <Text style={styles.statLabel}>Trasplantes</Text>
+          <Text style={styles.statLabel}>Casos</Text>
         </View>
         <View style={styles.statBox}>
+          <Ionicons name="checkmark-circle-outline" size={16} color={Colors.success} />
           <Text style={[styles.statNum, { color: Colors.success }]}>
             {casos.filter(c => c.estado === 'completo').length}
           </Text>
           <Text style={styles.statLabel}>Completos</Text>
         </View>
         <View style={styles.statBox}>
+          <Ionicons name="time-outline" size={16} color={Colors.warning} />
           <Text style={[styles.statNum, { color: Colors.warning }]}>
+            {casos.filter(c => c.estado === 'borrador' || c.estado === 'incompleto').length}
+          </Text>
+          <Text style={styles.statLabel}>Borradores</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Ionicons name="warning-outline" size={16} color={Colors.danger} />
+          <Text style={[styles.statNum, { color: Colors.danger }]}>
             {casos.filter(c => (c.num_alertas ?? 0) > 0).length}
           </Text>
-          <Text style={styles.statLabel}>Con alertas</Text>
+          <Text style={styles.statLabel}>Alertas</Text>
         </View>
       </View>
 
@@ -143,17 +153,6 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   container:     { flex: 1, backgroundColor: Colors.background },
-  header: {
-    backgroundColor: Colors.primary,
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle:   { fontSize: 22, fontWeight: '900', color: '#fff' },
-  headerSub:     { fontSize: 11, color: '#BBDEFB', marginTop: 2 },
   bannerCritico: {
     backgroundColor: Colors.danger,
     flexDirection: 'row',
@@ -172,12 +171,13 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRightWidth: 1,
     borderColor: Colors.border,
+    gap: 2,
   },
-  statNum:       { fontSize: 22, fontWeight: '900', color: Colors.primary },
-  statLabel:     { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
+  statNum:   { fontSize: 20, fontWeight: '900', color: Colors.primary },
+  statLabel: { fontSize: 10, color: Colors.textSecondary },
   list:          { padding: 16, paddingBottom: 90 },
   empty:         { alignItems: 'center', marginTop: 60, gap: 8 },
   emptyText:     { fontSize: 16, fontWeight: '700', color: Colors.textSecondary },

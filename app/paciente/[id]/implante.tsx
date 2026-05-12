@@ -17,8 +17,7 @@ import {
   OPTIONS_TECNICA, OPTIONS_VB_TECNICA, OPTIONS_HOPE_TIPO,
   OPTIONS_HEPATOPATIA, TIMEPOINTS_INTRAOP, COLS_INTRAOP,
 } from '../../../constants/variables';
-import * as ImagePicker from 'expo-image-picker';
-import { extractFromImage } from '../../../lib/ocr/claude-vision';
+import { captureAndOCR } from '../../../lib/ocr/capture';
 
 type FormData = Record<string, string | number | null>;
 
@@ -69,24 +68,13 @@ export default function FormularioImplante() {
   const set = (key: string, val: string | number | null) =>
     setForm(prev => ({ ...prev, [key]: val }));
 
-  const handleCamera = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) { Alert.alert('Permiso denegado'); return; }
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.85 });
-    if (!result.canceled && result.assets[0].base64) processOCR(result.assets[0].base64, 'image/jpeg');
-  };
-
-  const handleGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.85 });
-    if (!result.canceled && result.assets[0].base64) processOCR(result.assets[0].base64, 'image/jpeg');
-  };
-
-  const processOCR = async (base64: string, mime: 'image/jpeg' | 'image/png') => {
+  const handleOCR = async (source: 'camera' | 'gallery') => {
     setOcrLoading(true);
     try {
-      const data = await extractFromImage(base64, mime, 'receptor_implante');
+      const result = await captureAndOCR(source, 'receptor_implante');
+      if (!result) return;
       const updates: FormData = {};
-      for (const [k, v] of Object.entries(data)) {
+      for (const [k, v] of Object.entries(result.fields)) {
         if (k === 'serie_intraop' && Array.isArray(v)) {
           const obj: Record<string, Record<string, string>> = {};
           for (const row of v as Array<Record<string, unknown>>) {
@@ -102,7 +90,8 @@ export default function FormularioImplante() {
         }
       }
       setForm(prev => ({ ...prev, ...updates }));
-      Alert.alert('✅ OCR completado', `${Object.values(updates).filter(Boolean).length} campos extraídos. Revisa y corrige.`);
+      const shield = result.headerRedacted ? '🛡️ Cabecera eliminada · ' : '';
+      Alert.alert('✅ OCR completado', `${shield}${result.fieldCount} campos extraídos. Revisa y corrige.`);
     } catch (err) {
       Alert.alert('Error OCR', (err as Error).message);
     } finally {
@@ -141,10 +130,14 @@ export default function FormularioImplante() {
 
       await generarAlertas(tid);
 
-      Alert.alert('✅ Guardado', 'Datos de implante guardados.', [
-        { text: 'Ir a Postoperatorio', onPress: () => router.push(`/paciente/${tid}/postoperatorio`) },
-        { text: 'Aceptar' },
-      ]);
+      if (Platform.OS === 'web') {
+        router.push(`/paciente/${tid}/postoperatorio`);
+      } else {
+        Alert.alert('✅ Guardado', 'Datos de implante guardados.', [
+          { text: 'Ir a Postoperatorio', onPress: () => router.push(`/paciente/${tid}/postoperatorio`) },
+          { text: 'Aceptar' },
+        ]);
+      }
     } catch (err) {
       Alert.alert('Error al guardar', (err as Error).message);
     } finally {
@@ -166,7 +159,7 @@ export default function FormularioImplante() {
         </View>
 
         <View style={styles.block}>
-          <OCRButton onCamera={handleCamera} onGallery={handleGallery} loading={ocrLoading} />
+          <OCRButton onCamera={() => handleOCR('camera')} onGallery={() => handleOCR('gallery')} loading={ocrLoading} />
         </View>
 
         {/* DATOS RECEPTOR */}

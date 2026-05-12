@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system';
+import { EncodingType } from 'expo-file-system/build/ExpoFileSystem.types';
 
 export interface SyncResult {
   ok: boolean;
@@ -10,7 +11,7 @@ export interface SyncResult {
 export async function uploadToServer(filePath: string, serverIP: string): Promise<SyncResult> {
   try {
     const base64 = await FileSystem.readAsStringAsync(filePath, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: EncodingType.Base64,
     });
 
     const filename = filePath.split('/').pop() ?? 'BDTH_export.xlsx';
