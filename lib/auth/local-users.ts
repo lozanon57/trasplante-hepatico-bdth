@@ -13,6 +13,13 @@ interface LocalUser {
 // SHA-256(password + SALT) — computed offline, never transmitted
 const USERS: LocalUser[] = [
   {
+    id: 7,
+    email: 'lozanon57@hotmail.com',
+    nombre: 'Dr. Lozano',
+    rol: 'jefe',
+    passwordHash: 'eafb3dc8910f9cbedbda0ef342865b13d1db8f5e0c12a645436ce4ac1f6611fe',
+  },
+  {
     id: 1,
     email: 'jefe@hgm.es',
     nombre: 'Jefe Unidad Trasplante',
