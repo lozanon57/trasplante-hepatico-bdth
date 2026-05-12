@@ -161,10 +161,15 @@ const PROMPTS: Record<Seccion, string> = {
  * On native, throws if the key is not configured.
  */
 async function getOrPromptApiKey(): Promise<string> {
+  // 1. Key stored by the user in Settings (highest priority)
   const stored = await SecureStore.getItemAsync('anthropic_api_key');
   if (stored) return stored;
 
-  // Web: use browser prompt so the demo works without pre-configuring
+  // 2. Key baked in at build time (GitHub Pages deploy)
+  const buildKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+  if (buildKey) return buildKey;
+
+  // 3. Web fallback: inline prompt so the demo works without any pre-config
   if ((Platform.OS as string) === 'web' && typeof window !== 'undefined') {
     const entered = window.prompt(
       '🔑 Clave de API de Anthropic requerida para el OCR.\n' +
