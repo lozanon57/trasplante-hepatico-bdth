@@ -154,6 +154,36 @@ const PROMPTS: Record<Seccion, string> = {
   postoperatorio: PROMPT_POSTOP,
 };
 
+// ── API key helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Get the stored API key, or (web only) prompt the user to enter it inline.
+ * On native, throws if the key is not configured.
+ */
+async function getOrPromptApiKey(): Promise<string> {
+  const stored = await SecureStore.getItemAsync('anthropic_api_key');
+  if (stored) return stored;
+
+  // Web: use browser prompt so the demo works without pre-configuring
+  if ((Platform.OS as string) === 'web' && typeof window !== 'undefined') {
+    const entered = window.prompt(
+      '🔑 Clave de API de Anthropic requerida para el OCR.\n' +
+      'Obtenla en console.anthropic.com/settings/keys\n\n' +
+      'Se guardará localmente en este navegador para futuras sesiones.'
+    );
+    if (entered && entered.trim().startsWith('sk-ant-')) {
+      await SecureStore.setItemAsync('anthropic_api_key', entered.trim());
+      return entered.trim();
+    }
+    throw new Error(
+      'OCR requiere una clave API de Anthropic válida (sk-ant-…).\n' +
+      'Ve a Configuración para guardarla de forma segura.'
+    );
+  }
+
+  throw new Error('API Key de Anthropic no configurada. Ve a Configuración → sección OCR.');
+}
+
 // ── Online OCR via Claude Vision ───────────────────────────────────────────────
 
 async function extractOnline(
@@ -161,11 +191,10 @@ async function extractOnline(
   mediaType: 'image/jpeg' | 'image/png',
   seccion: Seccion
 ): Promise<Record<string, unknown>> {
-  const apiKey = await SecureStore.getItemAsync('anthropic_api_key');
-  if (!apiKey) throw new Error('API Key de Anthropic no configurada. Ve a Configuración.');
+  const apiKey = await getOrPromptApiKey();
 
   const clientOptions: ConstructorParameters<typeof Anthropic>[0] = { apiKey };
-  if (Platform.OS === 'web') {
+  if ((Platform.OS as string) === 'web') {
     (clientOptions as Record<string, unknown>).dangerouslyAllowBrowser = true;
   }
   const client = new Anthropic(clientOptions);
