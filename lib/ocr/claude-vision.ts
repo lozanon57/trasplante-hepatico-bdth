@@ -184,7 +184,7 @@ async function extractOnline(
 
   if ((Platform.OS as string) === 'web') {
     // ── Web: use Vercel proxy to avoid CORS ──────────────────────────────────
-    const proxyUrl = process.env.EXPO_PUBLIC_OCR_PROXY_URL ?? '/api/ocr';
+    const proxyUrl = 'https://bdth-proxy-ocr.vercel.app/api/ocr';
     const res = await fetch(proxyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
