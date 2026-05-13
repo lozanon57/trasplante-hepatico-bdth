@@ -1,0 +1,8 @@
+{
+  "outputDirectory": "dist-web",
+  "buildCommand": "npx expo export --platform web --output-dir dist-web",
+  "rewrites": [
+    { "source": "/api/ocr", "destination": "/api/ocr" },
+    { "source": "/(.*)",    "destination": "/index.html" }
+  ]
+}

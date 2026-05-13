@@ -154,56 +154,18 @@ const PROMPTS: Record<Seccion, string> = {
   postoperatorio: PROMPT_POSTOP,
 };
 
-// ── API key helpers ────────────────────────────────────────────────────────────
+// ── Online OCR ─────────────────────────────────────────────────────────────────
 
 /**
- * Get the stored API key, or (web only) prompt the user to enter it inline.
- * On native, throws if the key is not configured.
+ * On web: calls the Vercel proxy (/api/ocr) which holds the API key server-side.
+ * On native: calls Anthropic directly using the key from SecureStore.
  */
-async function getOrPromptApiKey(): Promise<string> {
-  // 1. Key stored by the user in Settings (highest priority)
-  const stored = await SecureStore.getItemAsync('anthropic_api_key');
-  if (stored) return stored;
-
-  // 2. Key baked in at build time (GitHub Pages deploy)
-  const buildKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-  if (buildKey) return buildKey;
-
-  // 3. Web fallback: inline prompt so the demo works without any pre-config
-  if ((Platform.OS as string) === 'web' && typeof window !== 'undefined') {
-    const entered = window.prompt(
-      '🔑 Clave de API de Anthropic requerida para el OCR.\n' +
-      'Obtenla en console.anthropic.com/settings/keys\n\n' +
-      'Se guardará localmente en este navegador para futuras sesiones.'
-    );
-    if (entered && entered.trim().startsWith('sk-ant-')) {
-      await SecureStore.setItemAsync('anthropic_api_key', entered.trim());
-      return entered.trim();
-    }
-    throw new Error(
-      'OCR requiere una clave API de Anthropic válida (sk-ant-…).\n' +
-      'Ve a Configuración para guardarla de forma segura.'
-    );
-  }
-
-  throw new Error('API Key de Anthropic no configurada. Ve a Configuración → sección OCR.');
-}
-
-// ── Online OCR via Claude Vision ───────────────────────────────────────────────
-
 async function extractOnline(
   base64Image: string,
   mediaType: 'image/jpeg' | 'image/png',
   seccion: Seccion
 ): Promise<Record<string, unknown>> {
-  const apiKey = await getOrPromptApiKey();
-
-  const clientOptions: ConstructorParameters<typeof Anthropic>[0] = { apiKey };
-  if ((Platform.OS as string) === 'web') {
-    (clientOptions as Record<string, unknown>).dangerouslyAllowBrowser = true;
-  }
-  const client = new Anthropic(clientOptions);
-  const response = await client.messages.create({
+  const payload = {
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
@@ -216,9 +178,38 @@ async function extractOnline(
         ],
       },
     ],
-  });
+  };
 
-  const raw = response.content[0].type === 'text' ? response.content[0].text : '';
+  let raw: string;
+
+  if ((Platform.OS as string) === 'web') {
+    // ── Web: use Vercel proxy to avoid CORS ──────────────────────────────────
+    const proxyUrl = process.env.EXPO_PUBLIC_OCR_PROXY_URL ?? '/api/ocr';
+    const res = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText);
+      throw new Error(`OCR proxy error ${res.status}: ${errText}`);
+    }
+    const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+    raw = data.content?.[0]?.type === 'text' ? data.content[0].text : '';
+  } else {
+    // ── Native: call Anthropic SDK directly ──────────────────────────────────
+    const apiKey = await SecureStore.getItemAsync('anthropic_api_key');
+    if (!apiKey) throw new Error('API Key de Anthropic no configurada. Ve a Configuración → sección OCR.');
+    const client = new Anthropic({ apiKey });
+    const response = await client.messages.create({
+      model: payload.model,
+      max_tokens: payload.max_tokens,
+      system: payload.system,
+      messages: payload.messages as Parameters<typeof client.messages.create>[0]['messages'],
+    });
+    raw = response.content[0].type === 'text' ? (response.content[0] as { type: 'text'; text: string }).text : '';
+  }
+
   const clean = raw.replace(/```json\s*/g, '').replace(/```/g, '').trim();
   return JSON.parse(clean) as Record<string, unknown>;
 }
