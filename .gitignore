@@ -47,3 +47,4 @@ ocr_server/__pycache__/
 
 # Server uploads
 server/uploads/
+.vercel

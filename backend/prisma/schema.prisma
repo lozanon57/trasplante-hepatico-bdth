@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id         Int      @id @default(autoincrement())
+  nombre     String
+  email      String   @unique
+  password   String
+  rol        String   @default("cirujano") // cirujano | jefe
+  activo     Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  trasplantes Trasplante[]
+  audit_logs  AuditLog[]
+}
+
+model Paciente {
+  id          Int      @id @default(autoincrement())
+  nhc_hash    String   @unique  // SHA256(NHC + SALT) — para búsqueda
+  nhc_cifrado String            // AES-256-GCM(NHC, SERVER_KEY) — solo jefe
+  codigo_anon String   @unique  // "BDT-XXXXXXXX"
+  grupo_abo   String?
+  created_at  DateTime @default(now())
+
+  trasplantes Trasplante[]
+}
+
+model Trasplante {
+  id               Int       @id @default(autoincrement())
+  sync_id          String    @unique  // UUID generado en el móvil
+  paciente_id      Int
+  usuario_id       Int
+  nhc_higado       String?
+  fecha_trasplante BigInt?
+  estado           String    @default("borrador")
+  num_alertas      Int       @default(0)
+  updated_at       DateTime  @updatedAt
+  created_at       DateTime  @default(now())
+  deleted_at       DateTime?
+
+  paciente         Paciente  @relation(fields: [paciente_id], references: [id])
+  usuario          Usuario   @relation(fields: [usuario_id], references: [id])
+  donante          Donante?
+  implante         Implante?
+  postoperatorio   Postoperatorio?
+}
+
+// Datos clínicos en JSON — flexible ante cambios de formulario
+model Donante {
+  id            Int        @id @default(autoincrement())
+  sync_id       String     @unique
+  trasplante_id Int        @unique
+  datos         Json
+  updated_at    DateTime   @updatedAt
+
+  trasplante    Trasplante @relation(fields: [trasplante_id], references: [id])
+}
+
+model Implante {
+  id            Int        @id @default(autoincrement())
+  sync_id       String     @unique
+  trasplante_id Int        @unique
+  datos         Json
+  updated_at    DateTime   @updatedAt
+
+  trasplante    Trasplante @relation(fields: [trasplante_id], references: [id])
+}
+
+model Postoperatorio {
+  id            Int        @id @default(autoincrement())
+  sync_id       String     @unique
+  trasplante_id Int        @unique
+  datos         Json
+  updated_at    DateTime   @updatedAt
+
+  trasplante    Trasplante @relation(fields: [trasplante_id], references: [id])
+}
+
+// Audit log — INSERT ONLY, nunca se modifica
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  tipo          String   // INSERT | UPDATE | DELETE
+  tabla         String
+  registro_id   Int
+  usuario_id    Int
+  datos_json    String
+  hash_anterior String
+  hash_registro String   // SHA256(datos + hash_anterior + created_at + usuario_id)
+  created_at    DateTime @default(now())
+
+  usuario       Usuario  @relation(fields: [usuario_id], references: [id])
+}
