@@ -8,6 +8,7 @@
 type Seccion = 'donante' | 'receptor_implante' | 'postoperatorio';
 
 const PROXY_URL = 'https://bdth-proxy-ocr.vercel.app/api/ocr';
+const MODEL    = 'claude-sonnet-4-20250514';
 
 const SYSTEM_PROMPT = `Eres un experto en extracción de datos de formularios médicos de trasplante hepático del Hospital Gregorio Marañón (formulario BDTH).
 
@@ -192,7 +193,7 @@ export async function extractFromImage(
   const safeMimeType = mediaType.startsWith('image/') ? mediaType : 'image/jpeg';
 
   const payload = {
-    model: 'claude-opus-4-5',
+    model: MODEL,
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [
