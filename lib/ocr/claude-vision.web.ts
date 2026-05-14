@@ -190,7 +190,9 @@ export async function extractFromImage(
   }
 
   // Online mode: call Vercel proxy (CORS-safe, API key server-side)
-  const safeMimeType = mediaType.startsWith('image/') ? mediaType : 'image/jpeg';
+  // Anthropic only supports these four types — anything else (heic, bmp, tiff…) → jpeg
+  const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+  const safeMimeType = ALLOWED_TYPES.has(mediaType) ? mediaType : 'image/jpeg';
 
   const payload = {
     model: MODEL,

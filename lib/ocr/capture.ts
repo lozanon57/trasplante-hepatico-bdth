@@ -149,13 +149,20 @@ async function captureAndOCRWeb(
   let headerRedacted = false;
   try {
     base64 = await cropHeaderCanvas(base64, mimeType);
+    // Canvas always outputs JPEG regardless of input format (HEIC, PNG, WebP, BMP…).
+    // Update mimeType so Anthropic receives the correct media_type declaration.
+    mimeType = 'image/jpeg';
     headerRedacted = true;
   } catch {
-    // proceed with unredacted image
+    // Non-fatal: proceed with original image.
+    // Still sanitize: Anthropic only supports jpeg/png/gif/webp.
+    if (!['image/jpeg','image/png','image/gif','image/webp'].includes(mimeType)) {
+      mimeType = 'image/jpeg';
+    }
   }
 
   const options = await readOcrOptions();
-  const safeMime = mimeType.startsWith('image/') ? mimeType as 'image/jpeg' | 'image/png' : 'image/jpeg';
+  const safeMime = mimeType as 'image/jpeg' | 'image/png';
   const fields   = await extractFromImage(base64, safeMime, seccion, options);
   const fieldCount = Object.values(fields).filter(v => v !== null).length;
 
